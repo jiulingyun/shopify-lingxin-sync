@@ -221,6 +221,14 @@ class ShopifyToLingxinConverter:
         sku = row['Variant SKU'] if pd.notna(row['Variant SKU']) and row['Variant SKU'] != '' else row['Handle']
         sku = str(sku) if pd.notna(sku) else ''
         
+        # 清理非法字符：只保留字母、数字、下划线、短划线、点、井号、斜杠
+        # 领星ERP要求：字母，数字，下划线（_），短划线（-），英文点（.），井号（#），斜杆（/）
+        original_sku = sku
+        sku = re.sub(r'[^a-zA-Z0-9_\-\.#/]', '', sku)
+        
+        if sku != original_sku and sku:
+            self.sku_warnings.append(f"SKU包含非法字符已清理: '{original_sku}' -> '{sku}'")
+        
         if len(sku) > 50:
             original_sku = sku
             sku = sku[:50]
@@ -248,10 +256,18 @@ class ShopifyToLingxinConverter:
         return truncate_field(title_cleaned, 200)
     
     def _process_type(self, row, last_type):
-        """处理产品类型字段"""
-        if pd.notna(row['Type']) and row['Type'] != '':
-            return truncate_field(row['Type'], 50)
-        return truncate_field(last_type, 50)
+        """
+        处理产品类型字段
+        
+        领星ERP要求：
+        1、产品类型为组合产品时，支持填写右侧同底色字段及【包含单品】表格
+        2、产品类型为普通产品时，填写无效自动过滤
+        3、为空时，默认为普通产品
+        
+        因此，对于Shopify导入的普通产品，应该留空
+        """
+        # 留空，让领星ERP默认为普通产品
+        return ''
     
     def _process_vendor(self, row, last_vendor):
         """处理品牌字段"""
